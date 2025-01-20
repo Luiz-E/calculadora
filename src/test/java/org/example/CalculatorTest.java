@@ -1,15 +1,11 @@
 package org.example;
 
-import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.stream.Stream;
-
 
 class CalculatorTest {
 
@@ -20,19 +16,11 @@ class CalculatorTest {
         calculator = new Calculator();
     }
 
-    public static Stream<Arguments> equations() {
-        return Stream.of(
-                Arguments.of("4+21-0*2", "25"),
-                Arguments.of("4*3/6+5", "7"),
-                Arguments.of("(4+24)*5/7", "20"),
-                Arguments.of("-5*3+63/(5+2)", "-6")
-        );
-    }
-
-    @ParameterizedTest
-    @MethodSource(value = "equations")
-    void testWithStringParameter(String equation, String expected) {
-        Assertions.assertEquals(expected, calculator.calculate(equation));
+    @Test
+    @DisplayName("Should throw exception for operator in invalid position.")
+    void invalidExpression() {
+        Throwable exception = Assertions.assertThrows(NumberFormatException.class, () -> calculator.calculate("4**5"));
+        Assertions.assertEquals("* não é um número válido.", exception.getMessage());
     }
 
     @Test
@@ -43,136 +31,180 @@ class CalculatorTest {
     }
 
     @Test
-    @DisplayName("Throws exception for empty string")
+    @DisplayName("Throws exception for empty equation")
     void emptyEquation() {
         Throwable exception = Assertions.assertThrows(IllegalArgumentException.class, () -> calculator.calculate(""));
         Assertions.assertEquals("A equação não pode ser nula ou vazia.", exception.getMessage());
     }
 
     @Test
-    @DisplayName("Basic multiplication of two numbers")
-    void multiplyTwoNumbers() {
-        Assertions.assertEquals("5813020", calculator.calculate("1453255*4"));
-    }
-
-    @Test
-    @DisplayName("Multiplication of multiple numbers")
-    void multiplyMoreThanTwoNumbers() {
-        Assertions.assertEquals("399280000", calculator.calculate("23*14*1000*1240"));
-    }
-
-    @Test
-    @DisplayName("Multiply negative numbers")
-    void multiplicationWithNegatives() {
-        Assertions.assertEquals("-15", calculator.calculate("3*-5"));
-    }
-
-    @Test
-    @DisplayName("Two negatives should make a positive in multiplication")
-    void multiplyTwoNegatives() {
-        Assertions.assertEquals("15", calculator.calculate("-3*(-5)"));
-    }
-
-    @Test
-    @DisplayName("Basic division of two numbers")
-    void divideTwoNumbers() {
-        Assertions.assertEquals("2", calculator.calculate("30/15"));
-    }
-
-    @Test
     @DisplayName("Throws exception for division by 0")
     void divideByZero() {
-        Throwable exception = Assertions.assertThrows(IllegalArgumentException.class, () -> calculator.calculate("4/0"));
+        Throwable exception = Assertions.assertThrows(ArithmeticException.class, () -> calculator.calculate("4*4+12/0"));
         Assertions.assertEquals("Divisão por zero não é permitida.", exception.getMessage());
     }
 
-    @Test
-    @DisplayName("Throws exception for division by 0 in more complex equations")
-    void divideByZeroInEquation() {
-        Assertions.assertThrows(IllegalArgumentException.class, () -> calculator.calculate("4*4+12/0"));
+    public static Stream<Arguments> invalidEquations() {
+        return Stream.of(
+                Arguments.of("4/t"),
+                Arguments.of("a*4"),
+                Arguments.of("4+a32"),
+                Arguments.of("7*%"),
+                Arguments.of("&$*2"),
+                Arguments.of("4+&*14")
+        );
+    }
+    @ParameterizedTest
+    @MethodSource("invalidEquations")
+    @DisplayName("Should throw for invalid characters in the equation")
+     void testInvalidCharacters(String equation) {
+        Throwable exception = Assertions.assertThrows(IllegalArgumentException.class, () -> calculator.calculate(equation));
+        Assertions.assertEquals("A equação não deve conter letras ou caracteres especiais.", exception.getMessage());
+    }
+
+    public static Stream<Arguments> invalidStartingCharacters() {
+        return Stream.of(
+                Arguments.of("*4/2"),
+                Arguments.of("/4+5")
+        );
+    }
+    @ParameterizedTest
+    @MethodSource("invalidStartingCharacters")
+    @DisplayName("Should thrown exception for equations that starts with * or /")
+    void testStartingCharacters(String equation) {
+        Throwable exception = Assertions.assertThrows(IllegalArgumentException.class, () -> calculator.calculate(equation));
+        Assertions.assertEquals("A equação não pode iniciar com os operadores * ou /.", exception.getMessage());
+    }
+
+    public static Stream<Arguments> invalidEndingCharacters() {
+        return Stream.of(
+                Arguments.of("5+9*"),
+                Arguments.of("2+5/"),
+                Arguments.of("4+2+"),
+                Arguments.of("4+2-")
+        );
+    }
+    @ParameterizedTest
+    @MethodSource("invalidEndingCharacters")
+    @DisplayName("Should thrown exception for equations that ends with +, -, * or /")
+    void testEndingCharacters(String equation) {
+        Throwable exception = Assertions.assertThrows(IllegalArgumentException.class, () -> calculator.calculate(equation));
+        Assertions.assertEquals("A equação não pode terminar com um operador matemático.", exception.getMessage());
+    }
+
+    public static Stream<Arguments> invalidParentheses() {
+        return Stream.of(
+                Arguments.of("((4+21*2)"),
+                Arguments.of(")2+1"),
+                Arguments.of("4+1)"),
+                Arguments.of("4+)+2*1")
+        );
+    }
+    @ParameterizedTest
+    @MethodSource("invalidParentheses")
+    @DisplayName("Should thrown exception for equations with incomplete parentheses")
+    void testInvalidParentheses(String equation) {
+        Throwable exception = Assertions.assertThrows(IllegalArgumentException.class, () -> calculator.calculate(equation));
+        Assertions.assertEquals("Os parênteses na equação devem estar equilibrados.", exception.getMessage());
+    }
+
+    public static Stream<Arguments> multiplicationTests() {
+        return Stream.of(
+                Arguments.of("2*5*10*9", "900"),
+                Arguments.of("3*-5", "-15"),
+                Arguments.of("-3*(-5)", "15"),
+                Arguments.of("23*14*1000*1240", "399280000"),
+                Arguments.of("2147483647*5", "10737418235"),
+                Arguments.of("-2147483647*11", "-23622320117")
+        );
+    }
+    @ParameterizedTest
+    @MethodSource("multiplicationTests")
+    @DisplayName("Multiplication tests")
+    void testMultiplication(String equation, String expected) {
+        Assertions.assertEquals(expected, calculator.calculate(equation));
+    }
+
+    public static Stream<Arguments> divisionTests() {
+        return Stream.of(
+                Arguments.of("140/2/7/5", "2"),
+                Arguments.of("60/-3", "-20"),
+                Arguments.of("-60/3", "-20"),
+                Arguments.of("1000000000/2", "500000000"),
+                Arguments.of("-1000/-5/-2", "-100"),
+                Arguments.of("2147483647/3", "715827882")
+        );
+    }
+    @ParameterizedTest
+    @MethodSource("divisionTests")
+    @DisplayName("Division tests")
+    void testDivision(String equation, String expected) {
+        Assertions.assertEquals(expected, calculator.calculate(equation));
     }
 
     @Test
-    @DisplayName("Multiple divisions to verify associativity")
-    void divideMoreThanTwoNumbers() {
-        Assertions.assertEquals("2", calculator.calculate("140/2/7/5"));
-    }
-
-    @Test
-    @DisplayName("Divide with negative divisor")
-    void divisionWithNegativeDivisor() {
-        Assertions.assertEquals("-20", calculator.calculate("60/-3"));
-    }
-
-    @Test
-    @DisplayName("Divide with negative dividend")
-    void divisionWithNegativeDividend() {
-        Assertions.assertEquals("-20", calculator.calculate("-60/3"));
-    }
-
-    @Test
-    @DisplayName("Divide with both numbers negatives")
-    void divisionWithNegatives() {
-        Assertions.assertEquals("40", calculator.calculate("-80/-2"));
-    }
-
-    @Test
-    @DisplayName("Multiplication and division order with multiplication first")
-    void multiplyThenDivide() {
-        Assertions.assertEquals("56", calculator.calculate("24*7/3"));
-    }
-
-    @Test
-    @DisplayName("Multiplication and division order with division first")
-    void divideThenMultiply() {
-        Assertions.assertEquals("324", calculator.calculate("216/2*3"));
-    }
-
-    @Test
-    @DisplayName("Addition and multiplication order")
-    void addThenMultiply() {
-        Assertions.assertEquals("135", calculator.calculate("15+3*40"));
-    }
-
-    @Test
-    @DisplayName("Basic addition of two numbers")
-    void addTwoNumbers() {
-        Assertions.assertEquals("65", calculator.calculate("47+18"));
-    }
-
-    @Test
-    @DisplayName("Addition of multiple numbers")
-    void addMoreThanTwoNumbers() {
+    @DisplayName("Basic addition test")
+    void basicAdditionTest() {
         Assertions.assertEquals("55", calculator.calculate("17+6+18+14"));
     }
 
     @Test
-    @DisplayName("Operation order with multiplication and addition")
-    void operationOrder() {
-        Assertions.assertEquals("137", calculator.calculate("17+3*40"));
+    @DisplayName("Addition with bigger numbers")
+    void additionEdgeCase() {
+        Assertions.assertEquals("8589934588", calculator.calculate("2147483647 + 2147483647+2147483647 + 2147483647"));
     }
 
     @Test
-    @DisplayName("Mixed operations with addition, multiplication, and division")
-    void addMultiplyAndDivide() {
-        Assertions.assertEquals("69", calculator.calculate("4+5+10*14/7*3"));
+    @DisplayName("Basic subtraction")
+    void basicSubtractionTest() {
+        Assertions.assertEquals("-3", calculator.calculate("120-14-20-89"));
     }
 
     @Test
-    @DisplayName("Four basic operations")
-    void fourBasicOperations() {
-        Assertions.assertEquals("146", calculator.calculate("4+5+10*14-7/7*3"));
+    @DisplayName("Subtraction with bigger numbers")
+    void subtractionEdgeCase() {
+        Assertions.assertEquals("-2147483648", calculator.calculate("2147483648-2147483648-2147483648"));
     }
 
-    @Test
-    @DisplayName("Equation with parentheses")
-    void complexEquation() {
-        Assertions.assertEquals("5", calculator.calculate("2+3*(4-3)"));
+    public static Stream<Arguments> equations() {
+        return Stream.of(
+                Arguments.of("4+21-0*2", "25"),
+                Arguments.of("4*3/6+5", "7"),
+                Arguments.of("(4+24)*5/7", "20"),
+                Arguments.of("-5*3+63/(5+2)", "-6"),
+                Arguments.of("-9+1", "-8"),
+                Arguments.of("65-17", "48"),
+                Arguments.of("(4*2)+4", "12"),
+                Arguments.of("12+-6+13+-14", "5"),
+                Arguments.of("-80/-2+3", "43"),
+                Arguments.of("-80/(-2+3)", "-80"),
+                Arguments.of("(((15+3)*40)+(10*5))*(2+(9*(6+4)))", "70840"),
+                Arguments.of("2+3*(4-3)", "5")
+        );
+    }
+    @ParameterizedTest
+    @MethodSource(value = "equations")
+    @DisplayName("A more diverse set of tests")
+    void testWithStringParameter(String equation, String expected) {
+        Assertions.assertEquals(expected, calculator.calculate(equation));
     }
 
-    @Test
-    @DisplayName("Addition and multiplication with parentheses")
-    void addThenMultiplyWithParentheses() {
-        Assertions.assertEquals("720", calculator.calculate("(15+3)*40"));
-    }
 }
+
+
+/*
+* @Test
+    void desempenho() {
+        long start = System.currentTimeMillis();
+        for (int i = 0; i < 1_000_000_000; i++) {
+            calculator.testStream("-5*3+63/(5+2)");
+        }
+        System.out.println("Stream: " + (System.currentTimeMillis() - start));
+
+        start = System.currentTimeMillis();
+
+        for (int i = 0; i < 1_000_000_000; i++) {
+            calculator.testFor("-5*3+63/(5+2)");
+        }
+        System.out.println("For: " + (System.currentTimeMillis() - start));
+    }*/
